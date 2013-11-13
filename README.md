@@ -8,7 +8,7 @@ Super set of CoffeeScript with types
 
 * extremely incomplete yet.
 * heavily under development
-* bad way to hacking CS
+* some dirty hack of CS
 
 ## Examples
 

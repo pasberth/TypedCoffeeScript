@@ -5,6 +5,38 @@ render = (obj) -> pj?.render obj
 CS = require './nodes'
 util = require 'util'
 
+# ref: http://coffeescriptcookbook.com/chapters/classes_and_objects/cloning
+clone = (obj) ->
+  if not obj? or typeof obj isnt 'object'
+    return obj
+
+  if obj instanceof Date
+    return new Date(obj.getTime()) 
+
+  if obj instanceof RegExp
+    flags = ''
+    flags += 'g' if obj.global?
+    flags += 'i' if obj.ignoreCase?
+    flags += 'm' if obj.multiline?
+    flags += 'y' if obj.sticky?
+    return new RegExp(obj.source, flags) 
+
+  newInstance = new obj.constructor()
+
+  for key of obj
+    newInstance[key] = clone obj[key]
+
+  return newInstance
+
+rewrite = (obj, templates) ->
+  return if (typeof obj) in ['string', 'number']
+  for key, val of obj
+    if (typeof val) is 'string'
+      if val in templates
+        obj[key] = 'Any' #templates[templates.indexOf(val)] 
+    else if val instanceof Object
+      rewrite(val, templates)
+
 NumberInterface = ->
   toString:
     name: 'function'
@@ -167,7 +199,7 @@ class VarSymbol
 class TypeSymbol
   # type :: String or Object
   # instanceof :: (Any) -> Boolean
-  constructor: ({@type, @instanceof}) ->
+  constructor: ({@type, @instanceof, @templates}) ->
     @instanceof ?= (t) -> t instanceof @constructor
 
 # Var and type scope as node
@@ -211,14 +243,15 @@ class Scope
 
   getReturnables: -> @_returnables
 
-  addType: (symbol, type) ->
-    @_types[symbol] = new TypeSymbol {type}
+  # addType :: String * Object * Object -> Type
+  addType: (symbol, type, templates) ->
+    @_types[symbol] = new TypeSymbol {type, templates}
 
   addTypeObject: (symbol, type_object) ->
     @_types[symbol] = type_object
 
   getType: (symbol) ->
-    @_types[symbol]?.type ? undefined
+    @_types[symbol]?.type or undefined
 
   getTypeInScope: (symbol) ->
     @getType(symbol) or @parent?.getTypeInScope(symbol) or undefined
@@ -230,7 +263,16 @@ class Scope
     @_this[symbol]?.type ? undefined
 
   addVar: (symbol, type, implicit = true) ->
-    @_vars[symbol] = new VarSymbol {type, implicit}
+    if type?.base?
+      # modify type
+      T = @getType(type.base)
+      return undefined unless T?.type
+
+      obj = clone T.type
+      if T.templates then rewrite obj, T.templates
+      @_vars[symbol] = new VarSymbol {type:obj, implicit}
+    else
+      @_vars[symbol] = new VarSymbol {type, implicit}
 
   getVar: (symbol) ->
     @_vars[symbol]?.type ? undefined

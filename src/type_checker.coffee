@@ -16,9 +16,9 @@ CS = require './nodes'
 g = window ? global
 checkNodes = (cs_ast) ->
   return unless cs_ast.body?.statements?
-  console.log "AST =================="
+  # console.log "AST =================="
   # console.log render cs_ast
-  console.log '================== AST'
+  # console.log '================== AST'
 
   if g._root_
     root = g._root_
@@ -32,12 +32,15 @@ checkNodes = (cs_ast) ->
 
   walk cs_ast, root
 
-  console.log 'scope ====================='
+  # console.log 'scope ====================='
   Scope.dump root
   return root
 
 walk_struct = (node, scope) ->
-  scope.addType node.name, node.expr
+  if node.name instanceof Object
+    scope.addType node.name.base, node.expr, [node.name.target]
+  else
+    scope.addType node.name, node.expr
 
 walk_program = (node, scope) ->
   walk node.body.statements, scope
@@ -175,6 +178,9 @@ walk_assignOp = (node, scope) ->
   walk left,  scope
   
   scope.addVar symbol, left.annotation.type if left.annotation? # TODO why left undefinedable?
+
+  if left.annotation?.type?
+    left.annotation.type = scope.getVar(symbol)
 
   # Identifier
   if left.instanceof CS.Identifier

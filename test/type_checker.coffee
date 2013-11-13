@@ -307,3 +307,17 @@ suite 'TypeChecker', ->
       x :: X = new X
       n :: String = x.f 3
       """
+
+    test 'new', ->
+      struct Singleton<T> {
+        getInstance :: () -> T
+      }
+
+      struct Point {
+        x :: Number
+        y :: Number
+      }
+
+      origin :: Singleton<Point> = {
+        getInstance: -> {x: 0, y: 0}
+      }
